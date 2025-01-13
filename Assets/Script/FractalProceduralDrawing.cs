@@ -79,6 +79,10 @@ public class FractalProceduralDrawing : MonoBehaviour
 		for (int i = 0; i < matricesBuffers.Length; i++) {
 			matricesBuffers[i].Release();
 		}
+
+		parts = null;
+		matrices = null;
+		matricesBuffers = null;
 	}
 	
 	void Update () {
@@ -114,5 +118,19 @@ public class FractalProceduralDrawing : MonoBehaviour
 				levelMatrices[fpi] = Matrix4x4.TRS(part.worldPosition, part.worldRotation, scale * Vector3.one);
 			}
 		}
+
+		for (int i = 0; i < matricesBuffers.Length; i++)
+		{
+			matricesBuffers[i].SetData(matrices[i]);
+		}
+	}
+
+	private void OnValidate()
+	{
+		if (parts != null && enabled)
+		{
+			OnDisable();
+			OnEnable();
+		} 
 	}
 }
