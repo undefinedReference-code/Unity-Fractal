@@ -9,6 +9,9 @@ public class FractalProceduralDrawing : MonoBehaviour
 	[SerializeField] Mesh mesh;
 
 	[SerializeField] Material material;
+	[SerializeField] Material material2;
+	
+	static readonly int matricesId = Shader.PropertyToID("_Matrices");
 	
 	struct FractalPart {
 		public Vector3 direction;
@@ -101,6 +104,7 @@ public class FractalProceduralDrawing : MonoBehaviour
 			FractalPart[] parentParts = parts[li - 1];
 			FractalPart[] levelParts = parts[li];
 			Matrix4x4[] levelMatrices = matrices[li];
+			scale *= 0.5f;
 			for (int fpi = 0; fpi < levelParts.Length; fpi++) {
 				FractalPart parent = parentParts[fpi / 5];
 				FractalPart part = levelParts[fpi];
@@ -118,10 +122,15 @@ public class FractalProceduralDrawing : MonoBehaviour
 				levelMatrices[fpi] = Matrix4x4.TRS(part.worldPosition, part.worldRotation, scale * Vector3.one);
 			}
 		}
-
-		for (int i = 0; i < matricesBuffers.Length; i++)
+		
+		var bounds = new Bounds(Vector3.zero, 3f * Vector3.one);
+		int count = 1;
+		for (int i = 0; i < 2; i++)
 		{
-			matricesBuffers[i].SetData(matrices[i]);
+			ComputeBuffer buffer = matricesBuffers[i];
+			buffer.SetData(matrices[i]);
+			material.SetBuffer(matricesId, buffer);
+			Graphics.DrawMeshInstancedProcedural(mesh, 0, material, bounds, buffer.count);
 		}
 	}
 
