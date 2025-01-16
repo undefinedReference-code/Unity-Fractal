@@ -12,7 +12,7 @@ public class FractalProceduralDrawing : MonoBehaviour
 	[SerializeField] Material material2;
 	
 	static readonly int matricesId = Shader.PropertyToID("_Matrices");
-	
+	static MaterialPropertyBlock propertyBlock;
 	struct FractalPart {
 		public Vector3 direction;
 		public Quaternion rotation;
@@ -76,6 +76,9 @@ public class FractalProceduralDrawing : MonoBehaviour
 				}
 			}
 		}
+
+		if (propertyBlock == null)
+			propertyBlock = new MaterialPropertyBlock();
 	}
 	
 	void OnDisable () {
@@ -96,10 +99,20 @@ public class FractalProceduralDrawing : MonoBehaviour
 		rootPart.spinAngle += spinAngleDelta;
 		// rotation should be write to game object
 		rootPart.worldRotation  = rootPart.rotation * Quaternion.Euler(0f, rootPart.spinAngle, 0f);
+		
+		// No matter how we move the object that mounts the script,
+		// the position of the fractal generation will not change.
+		// We can fix this by incorporating the game object's rotation
+		// and position into the root object matrix in Update.
+		rootPart.worldRotation = transform.rotation * rootPart.worldRotation;
+		rootPart.worldPosition = transform.position;
+		
 		// rootPart is not a reference by value, to write back.
 		parts[0][0] = rootPart;
-		matrices[0][0] = Matrix4x4.TRS(rootPart.worldPosition, rootPart.worldRotation, Vector3.one);
-		float scale = 1;
+		float objectScale = transform.localScale.x;
+		matrices[0][0] = Matrix4x4.TRS(rootPart.worldPosition, rootPart.worldRotation, objectScale * Vector3.one);
+		
+		float scale = objectScale;
 		for (int li = 1; li < parts.Length; li++) {
 			FractalPart[] parentParts = parts[li - 1];
 			FractalPart[] levelParts = parts[li];
@@ -123,14 +136,13 @@ public class FractalProceduralDrawing : MonoBehaviour
 			}
 		}
 		
-		var bounds = new Bounds(Vector3.zero, 3f * Vector3.one);
-		int count = 1;
-		for (int i = 0; i < 2; i++)
+		var bounds = new Bounds(Vector3.zero, objectScale * 3f * Vector3.one);
+		for (int i = 0; i < matricesBuffers.Length; i++)
 		{
 			ComputeBuffer buffer = matricesBuffers[i];
 			buffer.SetData(matrices[i]);
-			material.SetBuffer(matricesId, buffer);
-			Graphics.DrawMeshInstancedProcedural(mesh, 0, material, bounds, buffer.count);
+			propertyBlock.SetBuffer(matricesId, buffer);
+			Graphics.DrawMeshInstancedProcedural(mesh, 0, material, bounds, buffer.count, propertyBlock);
 		}
 	}
 

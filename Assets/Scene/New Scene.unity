@@ -336,7 +336,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 794575158}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.16451788, y: 0.321262, z: -0.45941812}
+  m_LocalPosition: {x: -0.679, y: 0.2, z: -0.45941812}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -354,9 +354,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a766a0252fa060143a96a3189809f16f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  depth: 2
-  mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  depth: 8
+  mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   material: {fileID: 2100000, guid: 98d38509c2f7b294f99f729c0138829a, type: 2}
+  material2: {fileID: 2100000, guid: e341f28bf3327734d96f253b8e9bda50, type: 2}
 --- !u!1 &1898318970
 GameObject:
   m_ObjectHideFlags: 0
@@ -386,8 +387,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3ea1c7c6dbb636940a5eb6c9fd76a528, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  depth: 2
-  mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  depth: 8
+  mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   material: {fileID: 2100000, guid: 675c1793ca3b68f4198cea23cc83ef69, type: 2}
 --- !u!4 &1898318972
 Transform:
