@@ -7,9 +7,31 @@ public class FractalJob : MonoBehaviour
 {
 	struct UpdateFractalLevelJob : IJobFor
 	{
+		public float spinAngleDelta;
+		public float scale;
+		
+		[ReadOnly]
+		public NativeArray<FractalPart> parents;
+		public NativeArray<FractalPart> parts;
+		[WriteOnly]	
+		public NativeArray<Matrix4x4> matrices;
+		
 		public void Execute(int i)
 		{
-			
+			FractalPart parent = parents[i / 5];
+			FractalPart part = parts[i];
+			// As everything spins around its local up axis the delta rotation is the rightmost operand.
+			part.spinAngle += spinAngleDelta;
+			// Transform global quaternion from local quaternion
+			// Quaternion worldRotation= transform.parent.rotation * localRotation;
+			part.worldRotation = parent.worldRotation * part.rotation * Quaternion.Euler(0f, part.spinAngle, 0f);
+			//  we use local position since all li-ci object has the same parent 
+			//  the parent's rotation should also affect the direction of its offset
+			part.worldPosition = parent.worldPosition 
+			                     + parent.worldRotation * (1.5f * scale * part.direction);
+			// write part back
+			parts[i] = part;
+			matrices[i] = Matrix4x4.TRS(part.worldPosition, part.worldRotation, scale * Vector3.one);
 		}
 	}
 	
@@ -18,7 +40,6 @@ public class FractalJob : MonoBehaviour
 	[SerializeField] Mesh mesh;
 
 	[SerializeField] Material material;
-	[SerializeField] Material material2;
 	
 	static readonly int matricesId = Shader.PropertyToID("_Matrices");
 	static MaterialPropertyBlock propertyBlock;
@@ -124,28 +145,21 @@ public class FractalJob : MonoBehaviour
 		matrices[0][0] = Matrix4x4.TRS(rootPart.worldPosition, rootPart.worldRotation, objectScale * Vector3.one);
 		
 		float scale = objectScale;
+		JobHandle jobHandle = default;
 		for (int li = 1; li < parts.Length; li++) {
-			NativeArray<FractalPart> parentParts = parts[li - 1];
-			NativeArray<FractalPart> levelParts = parts[li];
-			NativeArray<Matrix4x4> levelMatrices = matrices[li];
 			scale *= 0.5f;
-			for (int fpi = 0; fpi < levelParts.Length; fpi++) {
-				FractalPart parent = parentParts[fpi / 5];
-				FractalPart part = levelParts[fpi];
-				// As everything spins around its local up axis the delta rotation is the rightmost operand.
-				part.spinAngle += spinAngleDelta;
-				// Transform global quaternion from local quaternion
-				// Quaternion worldRotation= transform.parent.rotation * localRotation;
-				part.worldRotation = parent.worldRotation * part.rotation * Quaternion.Euler(0f, part.spinAngle, 0f);
-				//  we use local position since all li-ci object has the same parent 
-				//  the parent's rotation should also affect the direction of its offset
-				part.worldPosition = parent.worldPosition 
-				                     + parent.worldRotation * (1.5f * scale * part.direction);
-				// write part back
-				levelParts[fpi] = part;
-				levelMatrices[fpi] = Matrix4x4.TRS(part.worldPosition, part.worldRotation, scale * Vector3.one);
-			}
+
+			var job = new UpdateFractalLevelJob()
+			{
+				spinAngleDelta = spinAngleDelta,
+				scale = scale, 
+				parents = parts[li - 1],
+				parts = parts[li],
+				matrices = matrices[li]
+			};
+			jobHandle = job.Schedule(parts[li].Length, jobHandle);
 		}
+		jobHandle.Complete();
 		
 		var bounds = new Bounds(Vector3.zero, objectScale * 3f * Vector3.one);
 		for (int i = 0; i < matricesBuffers.Length; i++)
