@@ -1,10 +1,16 @@
 using Unity.Burst;
 using Unity.Collections;
-using Unity.Jobs;	
+using Unity.Jobs;
+using Unity.Mathematics;
 using UnityEngine;
+
+using static Unity.Mathematics.math;
+using float4x4 = Unity.Mathematics.float4x4;
+using quaternion = Unity.Mathematics.quaternion;
 
 public class FractalJob : MonoBehaviour
 {
+	[BurstCompile(CompileSynchronously = true)]
 	struct UpdateFractalLevelJob : IJobFor
 	{
 		public float spinAngleDelta;
@@ -14,7 +20,7 @@ public class FractalJob : MonoBehaviour
 		public NativeArray<FractalPart> parents;
 		public NativeArray<FractalPart> parts;
 		[WriteOnly]	
-		public NativeArray<Matrix4x4> matrices;
+		public NativeArray<float4x4> matrices;
 		
 		public void Execute(int i)
 		{
@@ -24,14 +30,14 @@ public class FractalJob : MonoBehaviour
 			part.spinAngle += spinAngleDelta;
 			// Transform global quaternion from local quaternion
 			// Quaternion worldRotation= transform.parent.rotation * localRotation;
-			part.worldRotation = parent.worldRotation * part.rotation * Quaternion.Euler(0f, part.spinAngle, 0f);
+			part.worldRotation = parent.worldRotation * part.rotation * quaternion.Euler(0f, part.spinAngle, 0f);
 			//  we use local position since all li-ci object has the same parent 
 			//  the parent's rotation should also affect the direction of its offset
 			part.worldPosition = parent.worldPosition 
 			                     + parent.worldRotation * (1.5f * scale * part.direction);
 			// write part back
 			parts[i] = part;
-			matrices[i] = Matrix4x4.TRS(part.worldPosition, part.worldRotation, scale * Vector3.one);
+			matrices[i] = float4x4.TRS(part.worldPosition, part.worldRotation, scale * float3.one);
 		}
 	}
 	
@@ -44,26 +50,26 @@ public class FractalJob : MonoBehaviour
 	static readonly int matricesId = Shader.PropertyToID("_Matrices");
 	static MaterialPropertyBlock propertyBlock;
 	struct FractalPart {
-		public Vector3 direction;
-		public Quaternion rotation;
-		// we don't need transform and game object
-		public Vector3 worldPosition;
-		public Quaternion worldRotation;
+		public float3 direction;
+		public quaternion rotation;
+		// we don't need transform and game object	
+		public float3 worldPosition;
+		public quaternion worldRotation;
 		public float spinAngle;
 	}
 	
 	NativeArray<FractalPart>[] parts;
-	NativeArray<Matrix4x4>[] matrices;
+	NativeArray<float4x4>[] matrices;
 	ComputeBuffer[] matricesBuffers;
 	
-	static Vector3[] directions = {
-		Vector3.up, Vector3.right, Vector3.left, Vector3.forward, Vector3.back
+	static float3[] directions = {
+		up(), right(), left(), forward(), back()
 	};
 
-	static Quaternion[] rotations = {
-		Quaternion.identity,
-		Quaternion.Euler(0f, 0f, -90f), Quaternion.Euler(0f, 0f, 90f),
-		Quaternion.Euler(90f, 0f, 0f), Quaternion.Euler(-90f, 0f, 0f)
+	static quaternion[] rotations = {
+		quaternion.identity,
+		quaternion.RotateZ(-0.5f * PI), quaternion.RotateZ(0.5f * PI),
+		quaternion.RotateX(0.5f * PI), quaternion.RotateX(-0.5f * PI)
 	};
 	
 	FractalPart  CreatePart (int childIndex) {
@@ -78,14 +84,14 @@ public class FractalJob : MonoBehaviour
 	private void OnEnable()
 	{
 		parts = new NativeArray<FractalPart>[depth];
-		matrices = new NativeArray<Matrix4x4>[depth];
+		matrices = new NativeArray<float4x4>[depth];
 		matricesBuffers = new ComputeBuffer[depth];
 		// root object only one
 		int stride = 16 * 4;
 		int length = 1;
 		for (int i = 0; i < parts.Length; i++) {
 			parts[i] = new NativeArray<FractalPart>(length, Allocator.Persistent);
-			matrices[i] = new NativeArray<Matrix4x4>(length, Allocator.Persistent);
+			matrices[i] = new NativeArray<float4x4>(length, Allocator.Persistent);
 			matricesBuffers[i] = new ComputeBuffer(length, stride);
 			// each part has 5 children, so *= 5
 			length *= 5;
@@ -130,7 +136,7 @@ public class FractalJob : MonoBehaviour
 		FractalPart rootPart = parts[0][0];
 		rootPart.spinAngle += spinAngleDelta;
 		// rotation should be write to game object
-		rootPart.worldRotation  = rootPart.rotation * Quaternion.Euler(0f, rootPart.spinAngle, 0f);
+		rootPart.worldRotation  = rootPart.rotation * quaternion.Euler(0f, rootPart.spinAngle, 0f);
 		
 		// No matter how we move the object that mounts the script,
 		// the position of the fractal generation will not change.
@@ -142,7 +148,7 @@ public class FractalJob : MonoBehaviour
 		// rootPart is not a reference by value, to write back.
 		parts[0][0] = rootPart;
 		float objectScale = transform.localScale.x;
-		matrices[0][0] = Matrix4x4.TRS(rootPart.worldPosition, rootPart.worldRotation, objectScale * Vector3.one);
+		matrices[0][0] = float4x4.TRS(rootPart.worldPosition, rootPart.worldRotation, objectScale * float3.one);
 		
 		float scale = objectScale;
 		JobHandle jobHandle = default;
@@ -161,7 +167,7 @@ public class FractalJob : MonoBehaviour
 		}
 		jobHandle.Complete();
 		
-		var bounds = new Bounds(Vector3.zero, objectScale * 3f * Vector3.one);
+		var bounds = new Bounds(float3.zero, objectScale * 3f * float3.one);
 		for (int i = 0; i < matricesBuffers.Length; i++)
 		{
 			ComputeBuffer buffer = matricesBuffers[i];
