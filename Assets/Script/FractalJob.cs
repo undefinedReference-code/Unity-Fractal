@@ -5,12 +5,12 @@ using Unity.Mathematics;
 using UnityEngine;
 
 using static Unity.Mathematics.math;
-using float4x4 = Unity.Mathematics.float4x4;
+using float3x4 = Unity.Mathematics.float3x4;
 using quaternion = Unity.Mathematics.quaternion;
 
 public class FractalJob : MonoBehaviour
 {
-	[BurstCompile(CompileSynchronously = true)]
+	[BurstCompile(FloatPrecision.Standard, FloatMode.Fast, CompileSynchronously = true)]
 	struct UpdateFractalLevelJob : IJobFor
 	{
 		public float spinAngleDelta;
@@ -20,7 +20,7 @@ public class FractalJob : MonoBehaviour
 		public NativeArray<FractalPart> parents;
 		public NativeArray<FractalPart> parts;
 		[WriteOnly]	
-		public NativeArray<float4x4> matrices;
+		public NativeArray<float3x4> matrices;
 		
 		public void Execute(int i)
 		{
@@ -30,14 +30,15 @@ public class FractalJob : MonoBehaviour
 			part.spinAngle += spinAngleDelta;
 			// Transform global quaternion from local quaternion
 			// Quaternion worldRotation= transform.parent.rotation * localRotation;
-			part.worldRotation = parent.worldRotation * part.rotation * quaternion.Euler(0f, part.spinAngle, 0f);
+			part.worldRotation = mul(parent.worldRotation, mul(part.rotation, quaternion.RotateY(part.spinAngle)));
 			//  we use local position since all li-ci object has the same parent 
 			//  the parent's rotation should also affect the direction of its offset
 			part.worldPosition = parent.worldPosition 
-			                     + parent.worldRotation * (1.5f * scale * part.direction);
+			                     + mul(parent.worldRotation, (1.5f * scale * part.direction));
 			// write part back
 			parts[i] = part;
-			matrices[i] = float4x4.TRS(part.worldPosition, part.worldRotation, scale * float3.one);
+			float3x3 r = float3x3(part.worldRotation) * scale;
+			matrices[i] = float3x4(r.c0, r.c1, r.c2, part.worldPosition);
 		}
 	}
 	
@@ -59,7 +60,7 @@ public class FractalJob : MonoBehaviour
 	}
 	
 	NativeArray<FractalPart>[] parts;
-	NativeArray<float4x4>[] matrices;
+	NativeArray<float3x4>[] matrices;
 	ComputeBuffer[] matricesBuffers;
 	
 	static float3[] directions = {
@@ -84,14 +85,14 @@ public class FractalJob : MonoBehaviour
 	private void OnEnable()
 	{
 		parts = new NativeArray<FractalPart>[depth];
-		matrices = new NativeArray<float4x4>[depth];
+		matrices = new NativeArray<float3x4>[depth];
 		matricesBuffers = new ComputeBuffer[depth];
 		// root object only one
-		int stride = 16 * 4;
+		int stride = 12 * 4;
 		int length = 1;
 		for (int i = 0; i < parts.Length; i++) {
 			parts[i] = new NativeArray<FractalPart>(length, Allocator.Persistent);
-			matrices[i] = new NativeArray<float4x4>(length, Allocator.Persistent);
+			matrices[i] = new NativeArray<float3x4>(length, Allocator.Persistent);
 			matricesBuffers[i] = new ComputeBuffer(length, stride);
 			// each part has 5 children, so *= 5
 			length *= 5;
@@ -131,15 +132,15 @@ public class FractalJob : MonoBehaviour
 	
 	void Update () {
 		// rotation speed
-		float spinAngleDelta = 22.5f * Time.deltaTime;
+		float spinAngleDelta = PI * 22.5f * Time.deltaTime / 180f;
 		// root part
 		FractalPart rootPart = parts[0][0];
 		rootPart.spinAngle += spinAngleDelta;
 		// rotation should be write to game object
-		rootPart.worldRotation  = rootPart.rotation * quaternion.Euler(0f, rootPart.spinAngle, 0f);
+		rootPart.worldRotation  = mul(rootPart.rotation, quaternion.RotateY(rootPart.spinAngle));
 		
 		// No matter how we move the object that mounts the script,
-		// the position of the fractal generation will not change.
+		// the position of the fractal generation will not change.	
 		// We can fix this by incorporating the game object's rotation
 		// and position into the root object matrix in Update.
 		rootPart.worldRotation = transform.rotation * rootPart.worldRotation;
@@ -148,7 +149,8 @@ public class FractalJob : MonoBehaviour
 		// rootPart is not a reference by value, to write back.
 		parts[0][0] = rootPart;
 		float objectScale = transform.localScale.x;
-		matrices[0][0] = float4x4.TRS(rootPart.worldPosition, rootPart.worldRotation, objectScale * float3.one);
+		float3x3 r = float3x3(rootPart.worldRotation) * objectScale;
+		matrices[0][0] = float3x4(r.c0, r.c1, r.c2, rootPart.worldPosition);
 		
 		float scale = objectScale;
 		JobHandle jobHandle = default;
@@ -167,7 +169,7 @@ public class FractalJob : MonoBehaviour
 		}
 		jobHandle.Complete();
 		
-		var bounds = new Bounds(float3.zero, objectScale * 3f * float3.one);
+		var bounds = new Bounds(Vector3.zero, objectScale * 3f * Vector3.one);
 		for (int i = 0; i < matricesBuffers.Length; i++)
 		{
 			ComputeBuffer buffer = matricesBuffers[i];

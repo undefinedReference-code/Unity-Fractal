@@ -134,7 +134,7 @@ Shader "Universal Render Pipeline/Lit"
             #pragma multi_compile _ DOTS_INSTANCING_ON
 
             
-            StructuredBuffer<float4x4> _Matrices;
+            StructuredBuffer<float3x4> _Matrices;
            
 
             #pragma vertex MyLitPassVertex
@@ -151,9 +151,12 @@ Shader "Universal Render Pipeline/Lit"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
-                
-                unity_ObjectToWorld = _Matrices[instanceID];
-                
+                float3x4 m = _Matrices[instanceID];
+                unity_ObjectToWorld[0] = m[0];
+                unity_ObjectToWorld[1] = m[1];
+                unity_ObjectToWorld[2] = m[2];
+                unity_ObjectToWorld[3] = float4(0,0,0,1);
+
                 VertexPositionInputs vertexInput = GetVertexPositionInputs(input.positionOS.xyz);
 
                 // normalWS and tangentWS already normalize.
