@@ -355,9 +355,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   depth: 8
-  mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+  mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 3}
   material: {fileID: 2100000, guid: 98d38509c2f7b294f99f729c0138829a, type: 2}
-  material2: {fileID: 2100000, guid: e341f28bf3327734d96f253b8e9bda50, type: 2}
+  material2: {fileID: 0}
 --- !u!1 &884572889
 GameObject:
   m_ObjectHideFlags: 0
@@ -387,7 +387,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fb4781a747669c246bde02ed443fc22d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  depth: 8
+  depth: 3
   mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   material: {fileID: 2100000, guid: 98d38509c2f7b294f99f729c0138829a, type: 2}
 --- !u!4 &884572891
@@ -434,7 +434,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   depth: 8
-  mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+  mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 3}
   material: {fileID: 2100000, guid: 675c1793ca3b68f4198cea23cc83ef69, type: 2}
 --- !u!4 &1898318972
 Transform:
